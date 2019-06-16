@@ -66,7 +66,7 @@ The contents of example.txt is as follows,
   
   **Example:**
   
-  list inputs  //DirectInput devices
+  list inputs  //List all DirectInput devices
   
   ---
   
