@@ -42,13 +42,13 @@ The contents of example.txt is as follows,
  
  More information to follow...
  
-## Commands
+## Commands (* denotes default parameter, label is not required)
 
-  **run** input="<full or relative path>"
+  **run** input*="<full or relative path>"
   
-  Run a series of commands from a file. 
+  *Run a series of commands from a file.*
   
-  Example:
+  **Example:**
   
   run example.txt  //Run the commands in the file example.txt located in this application path
   
@@ -56,4 +56,26 @@ The contents of example.txt is as follows,
   
   ---
   
+  **list** type*=<type of objects to list>
+  
+  *Lists objects currently loaded by Button2Key
+  
+  **Types:**
+  
+  inputs  //DirectInput devices
+  
+  **Example:**
+  
+  list inputs  //DirectInput devices
+  
+  ---
+  
+  **listen** [productguid=<product guid of input device>] [instanceguid=<instance guid of input device>] [debug=<on\off>]
+  
+  *Start listening to the DirectInput device matching the provided guid*
+  *You should only provide either productguid or instanceguid, not both.  These values can be obtained through the list command.*
+  
+  **Example:**
+  
+  list productguid=c24f046d-0000-0000-0000-504944564944 debug=on  //Listen for activity on a Logitech G29 Steering Wheel. Output all controller activity.
   
