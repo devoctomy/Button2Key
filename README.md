@@ -3,7 +3,7 @@ Simple mapping utility to enable mapping of a DirectInput compatible controller 
 
 I created this app as I needed a simple way to map some of my Logitech G29 steering wheel buttons to specific keys in Assetto Corsa.
 
-For example, entering the following commands (in sequence) will map L2 to rest the VR camera.
+For example, entering the following commands (in sequence) will map L2 to reset the VR camera.  (This saves you from having to take the headset off and press CTRL+Space)
 
 
     add type=keyboardinput name=assettocorsa_resetvrcam description="Reset VR Camera" command="keydown:control;keydown:space;sleep:100;keyup:space;keyup:control"
