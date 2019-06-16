@@ -44,38 +44,83 @@ The contents of example.txt is as follows,
  
 ## Commands (* denotes default parameter, label is not required)
 
-  **run** input*="<full or relative path>"
+
+  **run** input*="&lt;full or relative path&gt;"
   
   *Run a series of commands from a file.*
   
   **Example:**
   
-  run example.txt  //Run the commands in the file example.txt located in this application path
+  Run the commands in the file example.txt located in this application path
   
-  run input="c:\temp\example.txt"  //Run the commands in the file example.txt located in "c:\temp\"
+    run example.txt
+  
+  Run the commands in the file example.txt located in "c:\temp\"
+  
+    run input="c:\temp\example.txt"
   
   ---
   
-  **list** type*=<type of objects to list>
+  **list** type*=&lt;type of objects to list&gt;
   
   *Lists objects currently loaded by Button2Key
   
   **Types:**
   
-  inputs  //DirectInput devices
+  devices  - *DirectInput devices*
+  
+  inputs - *All configured inputs*
+  
+  mappings - *All configured mappings*
   
   **Example:**
   
-  list inputs  //List all DirectInput devices
+    list devices  //List all DirectInput devices
   
   ---
   
-  **listen** [productguid=<product guid of input device>] [instanceguid=<instance guid of input device>] [debug=<on\off>]
+  **listen** [productguid=<product guid of input device>] [instanceguid=<instance guid of input device>] [debug=&lt;on\off&gt;]
   
   *Start listening to the DirectInput device matching the provided guid*
   *You should only provide either productguid or instanceguid, not both.  These values can be obtained through the list command.*
   
   **Example:**
   
-  list productguid=c24f046d-0000-0000-0000-504944564944 debug=on  //Listen for activity on a Logitech G29 Steering Wheel. Output all controller activity.
+  Listen for activity on a Logitech G29 Steering Wheel. Output all controller activity.
   
+    listen productguid=c24f046d-0000-0000-0000-504944564944 debug=on
+  
+  ---
+  
+  **add** type*=&lt;type of object to add&gt; 
+  
+  **Types:**
+  
+  keyboardinput  - *Keyboard Input, specify a sequence of keys to simulate*
+  
+  Additional Parameters Required:
+  
+  [name=&lt;Name to give keyboard input&gt;]
+  [description=&lt;Description to give keyboard input&gt;]
+  [command=&lt;Sequence of keys to simulate&gt;]
+  
+  ---
+
+  mapping - *Mapping, specify what input to process when a specific button value is detected*
+  
+  [value=&lt;Value of button to match&gt;]
+  [input=&lt;Name of the input to process upon matching&gt;]
+
+  Additional Parameters Required:
+
+  **Example:**
+  
+  Add a keyboard input named 'assettocorsa_resetvrcam' that performs a CTRL+SPACE combination for 100 milliseconds before releasing the keys.
+  
+    add type=keyboardinput name=assettocorsa_resetvrcam description="Reset VR Camera" command="keydown:control;keydown:space;sleep:100;keyup:space;keyup:control"
+
+  Add a mapping so that when 'Button7' of the device being listened to equals 128, the keyboard input named 'assettocorsa_resetvrcam' will be performed.
+
+    add type=mapping button=Buttons7 value="equals:128" input=assettocorsa_resetvrcam
+  
+  ---

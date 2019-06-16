@@ -82,6 +82,10 @@ namespace Button2Key
                                 _commandBlocks.Add(curCommandBlock.ToString());
                                 curCommandBlock.Clear();
                             }
+                            else if(quoted)
+                            {
+                                curCommandBlock.Append(curChar);
+                            }
                             break;
                         }
                     case '\"':

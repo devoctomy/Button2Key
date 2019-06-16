@@ -51,6 +51,23 @@ namespace Button2Key
             public string Name;
             public string Description;
             public List<InputCommand> Commands;
+
+            public override string ToString()
+            {
+                StringBuilder output = new StringBuilder();
+                output.AppendLine(String.Format("Name : {0}", Name));
+                output.AppendLine(String.Format("Description : {0}", Description));
+                output.AppendLine("Commands -");
+                for(int iCommand = 0; iCommand < Commands.Count; iCommand++)
+                {
+                    InputCommand curCommand = Commands[iCommand];
+                    bool isLast = iCommand == (Commands.Count - 1);
+                    output.AppendLine(curCommand.ToString());
+                    if (!isLast) output.AppendLine("---");
+                }
+
+                return (output.ToString());
+            }
         }
 
         private struct InputCommand
@@ -59,6 +76,22 @@ namespace Button2Key
             public KeyboardKeyPressDirection KeyPressDirection;
             public WindowsInput.Native.VirtualKeyCode VirtualKeyCode;
             public int SleepTime;
+
+            public override string ToString()
+            {
+                StringBuilder output = new StringBuilder();
+                output.AppendLine(String.Format("Operation : {0}", Operation));
+                if (Operation == InputCommandOperation.keypress)
+                {
+                    output.AppendLine(String.Format("KeyPressDirection : {0}", KeyPressDirection));
+                    output.AppendLine(String.Format("KeyPressDirection : {0}", VirtualKeyCode));
+                }
+                if (Operation == InputCommandOperation.sleep)
+                {
+                    output.AppendLine(String.Format("KeyPressDirection : {0}", SleepTime));
+                }
+                return (output.ToString());
+            }
         }
 
         private struct ValueCompare
@@ -88,6 +121,14 @@ namespace Button2Key
                         }
                 }
             }
+
+            public override string ToString()
+            {
+                StringBuilder output = new StringBuilder();
+                output.AppendLine(String.Format("Operator : {0}", Operator));
+                output.AppendLine(String.Format("Value : {0}", Value));
+                return (output.ToString());
+            }
         }
 
         private struct Mapping
@@ -95,6 +136,16 @@ namespace Button2Key
             public string Button;
             public ValueCompare Value;
             public Input Input;
+
+            public override string ToString()
+            {
+                StringBuilder output = new StringBuilder();
+                output.AppendLine(String.Format("Button : {0}", Button));
+                string value = Value.ToString();
+                output.AppendLine(String.Format("Value : {0}", value.Trim()));
+                output.AppendLine(String.Format("Input : {0}", Input.Name));
+                return (output.ToString());
+            }
         }
 
         #endregion
@@ -152,14 +203,21 @@ namespace Button2Key
                     {
                         string input = parser.GetParameterValueOrDefault("input");
 
-                        string[] inputLines = File.ReadAllLines(input);
-                        foreach(string curLine in inputLines)
+                        if(File.Exists(input))
                         {
-                            string trimmedLine = curLine.Trim();
-                            if (!String.IsNullOrEmpty(trimmedLine) && !trimmedLine.StartsWith("//"))
+                            string[] inputLines = File.ReadAllLines(input);
+                            foreach (string curLine in inputLines)
                             {
-                                ProcessLine(curLine, out exit);
+                                string trimmedLine = curLine.Trim();
+                                if (!String.IsNullOrEmpty(trimmedLine) && !trimmedLine.StartsWith("//"))
+                                {
+                                    ProcessLine(curLine, out exit);
+                                }
                             }
+                        }
+                        else
+                        {
+                            Console.WriteLine("Input file does not exist.");
                         }
 
                         break;
@@ -170,7 +228,7 @@ namespace Button2Key
 
                         switch (type.ToLower())
                         {
-                            case "inputs":
+                            case "devices":
                                 {
                                     _allDevices = _directInput.GetDevices();
                                     for (int iInstance = 0; iInstance < _allDevices.Count; iInstance++)
@@ -181,6 +239,30 @@ namespace Button2Key
                                         if (!isLast) Console.WriteLine("---");
                                     }
 
+                                    break;
+                                }
+                            case "inputs":
+                                {
+                                    string[] keys = _inputs.Keys.ToArray();
+                                    for (int iInput = 0; iInput < keys.Length; iInput++)
+                                    {
+                                        Input curInput = _inputs[keys[iInput]];
+                                        bool isLast = iInput == (keys.Length - 1);
+                                        Console.WriteLine(curInput);
+                                        if (!isLast) Console.WriteLine("---");
+                                    }
+                                    break;
+                                }
+                            case "mappings":
+                                {
+                                    string[] keys = _mappings.Keys.ToArray();
+                                    for (int iMapping = 0; iMapping < keys.Length; iMapping++)
+                                    {
+                                        Mapping curMapping = _mappings[keys[iMapping]];
+                                        bool isLast = iMapping == (keys.Length - 1);
+                                        Console.WriteLine(curMapping);
+                                        if (!isLast) Console.WriteLine("---");
+                                    }
                                     break;
                                 }
                             default:
@@ -240,7 +322,7 @@ namespace Button2Key
                             case "keyboardinput":
                                 {
                                     string name = parser.GetParameterValueOrDefault("name", String.Empty);
-                                    string desription = parser.GetParameterValueOrDefault("desription", String.Empty);
+                                    string desription = parser.GetParameterValueOrDefault("description", String.Empty);
 
                                     if (!string.IsNullOrEmpty(name))
                                     {
