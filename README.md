@@ -42,4 +42,18 @@ The contents of example.txt is as follows,
  
  More information to follow...
  
+## Commands
 
+  **run** input="<full or relative path>"
+  
+  Run a series of commands from a file. 
+  
+  Example:
+  
+  run example.txt  //Run the commands in the file example.txt located in this application path
+  
+  run input="c:\temp\example.txt"  //Run the commands in the file example.txt located in "c:\temp\"
+  
+  ---
+  
+  
