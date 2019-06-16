@@ -1,6 +1,7 @@
 ﻿using SharpDX.DirectInput;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading;
@@ -103,6 +104,7 @@ namespace Button2Key
         private static DirectInput _directInput;
         private static IList<DeviceInstance> _allDevices;
         private static bool _listen;
+        private static bool _debugInput;
         private static InputSimulator _inputSimulator;
 
         private static Dictionary<string, Input> _inputs = new Dictionary<string, Input>();
@@ -129,224 +131,251 @@ namespace Button2Key
             while (!exit)
             {
                 string inputLine = RequestInput();
-                SimpleCommandLineParser parser = SimpleCommandLineParser.Parse(inputLine);
-                switch (parser.Command.ToLower())
-                {
-                    case "list":
-                        {
-                            string type = parser.GetParameterValueOrDefault("type");
-
-                            switch (type.ToLower())
-                            {
-                                case "inputs":
-                                    {
-                                        _allDevices = _directInput.GetDevices();
-                                        for (int iInstance = 0; iInstance < _allDevices.Count; iInstance++)
-                                        {
-                                            DeviceInstance curInstance = _allDevices[iInstance];
-                                            bool isLast = iInstance == (_allDevices.Count - 1);
-                                            Console.WriteLine(FormatDeviceInstanceString(curInstance));
-                                            if(!isLast) Console.WriteLine("---");
-                                        }
-
-                                        break;
-                                    }
-                                default:
-                                    {
-                                        Console.WriteLine("Unknown type.");
-                                        break;
-                                    }
-                            }
-
-                            break;
-                        }
-                    case "listen":
-                        {
-                            DeviceInstance instance = null;
-
-                            string instanceguid = parser.GetParameterValueOrDefault("instanceguid", String.Empty);
-                            string productguid = parser.GetParameterValueOrDefault("productguid", String.Empty);
-                            if (!String.IsNullOrEmpty(instanceguid))
-                            {
-                                instance = _allDevices.FirstOrDefault(di => di.InstanceGuid.ToString().ToLower() == instanceguid.ToLower());
-                            }
-                            else if (!String.IsNullOrEmpty(productguid))
-                            {
-                                instance = _allDevices.FirstOrDefault(di => di.ProductGuid.ToString().ToLower() == productguid.ToLower());
-                            }
-
-                            if (instance != null)
-                            {
-                                Console.WriteLine("Start listening to input from '{0}'.", instance.ProductName);
-                                _listen = true;
-                                Console.WriteLine("Press Escape key to stop listening...");
-                                Task listening = ListenDevice(instance);
-                                ConsoleKeyInfo key = Console.ReadKey();
-                                while(key.Key != ConsoleKey.Escape)
-                                {
-                                    key = Console.ReadKey();
-                                }
-                                Console.WriteLine("Stopping...");
-                                _listen = false;
-                                listening.Wait();
-                                Console.WriteLine("Stopped.");
-                            }
-                            else
-                            {
-                                Console.WriteLine("Device not found.", instanceguid);
-                            }
-
-                            break;
-                        }
-                    case "add":
-                        {
-                            string type = parser.GetParameterValueOrDefault("type");
-
-                            switch(type.ToLower())
-                            {
-                                case "keyboardinput":
-                                    {
-                                        string name = parser.GetParameterValueOrDefault("name", String.Empty);
-                                        string desription = parser.GetParameterValueOrDefault("desription", String.Empty);
-
-                                        if (!string.IsNullOrEmpty(name))
-                                        {
-                                            string command = parser.GetParameterValueOrDefault("command", String.Empty);
-
-                                            if (!String.IsNullOrEmpty(command))
-                                            {
-                                                List<InputCommand> commands = new List<InputCommand>();
-                                                string[] commandParts = command.Split(';');
-                                                foreach (string curPart in commandParts)
-                                                {
-                                                    string[] partParts = curPart.Split(':');
-                                                    switch (partParts[0])
-                                                    {
-                                                        case "keydown":
-                                                            {
-                                                                WindowsInput.Native.VirtualKeyCode key = (WindowsInput.Native.VirtualKeyCode)Enum.Parse(typeof(WindowsInput.Native.VirtualKeyCode), partParts[1], true);
-                                                                commands.Add(new InputCommand()
-                                                                {
-                                                                    Operation = InputCommandOperation.keypress,
-                                                                    KeyPressDirection = KeyboardKeyPressDirection.down,
-                                                                    VirtualKeyCode = key
-                                                                });
-                                                                break;
-                                                            }
-                                                        case "keyup":
-                                                            {
-                                                                WindowsInput.Native.VirtualKeyCode key = (WindowsInput.Native.VirtualKeyCode)Enum.Parse(typeof(WindowsInput.Native.VirtualKeyCode), partParts[1], true);
-                                                                commands.Add(new InputCommand()
-                                                                {
-                                                                    Operation = InputCommandOperation.keypress,
-                                                                    KeyPressDirection = KeyboardKeyPressDirection.up,
-                                                                    VirtualKeyCode = key
-                                                                });
-                                                                break;
-                                                            }
-                                                        case "sleep":
-                                                            {
-                                                                int time = int.Parse(partParts[1]);
-                                                                commands.Add(new InputCommand()
-                                                                {
-                                                                    Operation = InputCommandOperation.sleep,
-                                                                    SleepTime = time
-                                                                });
-                                                                break;
-                                                            }
-                                                    }
-                                                }
-
-                                                Input input = new Input()
-                                                {
-                                                    Name = name,
-                                                    Description = desription,
-                                                    Commands = commands
-                                                };
-
-                                                _inputs.Add(name, input);
-                                            }
-                                            else
-                                            {
-                                                Console.WriteLine("Missing required parameter 'command'.");
-                                            }
-                                        }
-                                        else
-                                        {
-                                            Console.WriteLine("Missing required parameter 'name'.");
-                                        }
-
-                                        break;
-                                    }
-                                case "mapping":
-                                    {
-                                        string button = parser.GetParameterValueOrDefault("button", String.Empty);
-
-                                        if(!String.IsNullOrEmpty(button))
-                                        {
-                                            string value = parser.GetParameterValueOrDefault("value", String.Empty);
-                                            string input = parser.GetParameterValueOrDefault("input", String.Empty);
-
-                                            if (!String.IsNullOrEmpty(input))
-                                            {
-                                                if(_inputs.ContainsKey(input))
-                                                {
-                                                    string[] valueParts = value.Split(':');
-                                                    ValueCompare compare = new ValueCompare()
-                                                    {
-                                                        Operator = (ValueComparisonOperator)Enum.Parse(typeof(ValueComparisonOperator), valueParts[0], true),
-                                                        Value = int.Parse(valueParts[1])
-                                                    };
-
-                                                    Mapping mapping = new Mapping()
-                                                    {
-                                                        Input = _inputs[input],
-                                                        Button = button.ToLower(),
-                                                        Value = compare
-                                                    };
-
-                                                    _mappings.Add(button.ToLower(), mapping);
-                                                }
-                                                else
-                                                {
-                                                    Console.WriteLine("No input exists with the name '{0}', you must add one before you can add a mapping for it.", input);
-                                                }
-                                            }
-                                            else
-                                            {
-                                                Console.WriteLine("Missing required parameter 'input'.");
-                                            }
-
-                                        }
-                                        else
-                                        {
-                                            Console.WriteLine("Missing required parameter 'button'.");
-                                        }
-
-                                        break;
-                                    }
-                            }
-
-                            break;
-                        }
-                    case "exit":
-                        {
-                            Console.WriteLine("Exiting...");
-                            exit = true;
-                            break;
-                        }
-                    default:
-                        {
-                            Console.WriteLine("Unknown command.");
-                            break;
-                        }
-                }
+                ProcessLine(inputLine, out exit);
             }
 
             Console.WriteLine("Press any key to close...");
             Console.ReadKey();
 
             return (0);
+        }
+
+        private static void ProcessLine(
+            string line,
+            out bool exit)
+        {
+            exit = false;
+            SimpleCommandLineParser parser = SimpleCommandLineParser.Parse(line);
+            switch (parser.Command.ToLower())
+            {
+                case "run":
+                    {
+                        string input = parser.GetParameterValueOrDefault("input");
+
+                        string[] inputLines = File.ReadAllLines(input);
+                        foreach(string curLine in inputLines)
+                        {
+                            string trimmedLine = curLine.Trim();
+                            if (!String.IsNullOrEmpty(trimmedLine) && !trimmedLine.StartsWith("//"))
+                            {
+                                ProcessLine(curLine, out exit);
+                            }
+                        }
+
+                        break;
+                    }
+                case "list":
+                    {
+                        string type = parser.GetParameterValueOrDefault("type");
+
+                        switch (type.ToLower())
+                        {
+                            case "inputs":
+                                {
+                                    _allDevices = _directInput.GetDevices();
+                                    for (int iInstance = 0; iInstance < _allDevices.Count; iInstance++)
+                                    {
+                                        DeviceInstance curInstance = _allDevices[iInstance];
+                                        bool isLast = iInstance == (_allDevices.Count - 1);
+                                        Console.WriteLine(FormatDeviceInstanceString(curInstance));
+                                        if (!isLast) Console.WriteLine("---");
+                                    }
+
+                                    break;
+                                }
+                            default:
+                                {
+                                    Console.WriteLine("Unknown type.");
+                                    break;
+                                }
+                        }
+
+                        break;
+                    }
+                case "listen":
+                    {
+                        DeviceInstance instance = null;
+
+                        _debugInput = parser.GetParameterValueOrDefault("debug", "on") == "on";
+                        string instanceguid = parser.GetParameterValueOrDefault("instanceguid", String.Empty);
+                        string productguid = parser.GetParameterValueOrDefault("productguid", String.Empty);
+                        if (!String.IsNullOrEmpty(instanceguid))
+                        {
+                            instance = _allDevices.FirstOrDefault(di => di.InstanceGuid.ToString().ToLower() == instanceguid.ToLower());
+                        }
+                        else if (!String.IsNullOrEmpty(productguid))
+                        {
+                            instance = _allDevices.FirstOrDefault(di => di.ProductGuid.ToString().ToLower() == productguid.ToLower());
+                        }
+
+                        if (instance != null)
+                        {
+                            Console.WriteLine("Start listening to input from '{0}'.", instance.ProductName);
+                            _listen = true;
+                            Console.WriteLine("Press Escape key to stop listening...");
+                            Task listening = ListenDevice(instance);
+                            ConsoleKeyInfo key = Console.ReadKey();
+                            while (key.Key != ConsoleKey.Escape)
+                            {
+                                key = Console.ReadKey();
+                            }
+                            Console.WriteLine("Stopping...");
+                            _listen = false;
+                            listening.Wait();
+                            Console.WriteLine("Stopped.");
+                        }
+                        else
+                        {
+                            Console.WriteLine("Device not found.", instanceguid);
+                        }
+
+                        break;
+                    }
+                case "add":
+                    {
+                        string type = parser.GetParameterValueOrDefault("type");
+
+                        switch (type.ToLower())
+                        {
+                            case "keyboardinput":
+                                {
+                                    string name = parser.GetParameterValueOrDefault("name", String.Empty);
+                                    string desription = parser.GetParameterValueOrDefault("desription", String.Empty);
+
+                                    if (!string.IsNullOrEmpty(name))
+                                    {
+                                        string command = parser.GetParameterValueOrDefault("command", String.Empty);
+
+                                        if (!String.IsNullOrEmpty(command))
+                                        {
+                                            List<InputCommand> commands = new List<InputCommand>();
+                                            string[] commandParts = command.Split(';');
+                                            foreach (string curPart in commandParts)
+                                            {
+                                                string[] partParts = curPart.Split(':');
+                                                switch (partParts[0])
+                                                {
+                                                    case "keydown":
+                                                        {
+                                                            WindowsInput.Native.VirtualKeyCode key = (WindowsInput.Native.VirtualKeyCode)Enum.Parse(typeof(WindowsInput.Native.VirtualKeyCode), partParts[1], true);
+                                                            commands.Add(new InputCommand()
+                                                            {
+                                                                Operation = InputCommandOperation.keypress,
+                                                                KeyPressDirection = KeyboardKeyPressDirection.down,
+                                                                VirtualKeyCode = key
+                                                            });
+                                                            break;
+                                                        }
+                                                    case "keyup":
+                                                        {
+                                                            WindowsInput.Native.VirtualKeyCode key = (WindowsInput.Native.VirtualKeyCode)Enum.Parse(typeof(WindowsInput.Native.VirtualKeyCode), partParts[1], true);
+                                                            commands.Add(new InputCommand()
+                                                            {
+                                                                Operation = InputCommandOperation.keypress,
+                                                                KeyPressDirection = KeyboardKeyPressDirection.up,
+                                                                VirtualKeyCode = key
+                                                            });
+                                                            break;
+                                                        }
+                                                    case "sleep":
+                                                        {
+                                                            int time = int.Parse(partParts[1]);
+                                                            commands.Add(new InputCommand()
+                                                            {
+                                                                Operation = InputCommandOperation.sleep,
+                                                                SleepTime = time
+                                                            });
+                                                            break;
+                                                        }
+                                                }
+                                            }
+
+                                            Input input = new Input()
+                                            {
+                                                Name = name,
+                                                Description = desription,
+                                                Commands = commands
+                                            };
+
+                                            Console.WriteLine("Adding command '{0}'.", name);
+                                            _inputs.Add(name, input);
+                                        }
+                                        else
+                                        {
+                                            Console.WriteLine("Missing required parameter 'command'.");
+                                        }
+                                    }
+                                    else
+                                    {
+                                        Console.WriteLine("Missing required parameter 'name'.");
+                                    }
+
+                                    break;
+                                }
+                            case "mapping":
+                                {
+                                    string button = parser.GetParameterValueOrDefault("button", String.Empty);
+
+                                    if (!String.IsNullOrEmpty(button))
+                                    {
+                                        string value = parser.GetParameterValueOrDefault("value", String.Empty);
+                                        string input = parser.GetParameterValueOrDefault("input", String.Empty);
+
+                                        if (!String.IsNullOrEmpty(input))
+                                        {
+                                            if (_inputs.ContainsKey(input))
+                                            {
+                                                string[] valueParts = value.Split(':');
+                                                ValueCompare compare = new ValueCompare()
+                                                {
+                                                    Operator = (ValueComparisonOperator)Enum.Parse(typeof(ValueComparisonOperator), valueParts[0], true),
+                                                    Value = int.Parse(valueParts[1])
+                                                };
+
+                                                Mapping mapping = new Mapping()
+                                                {
+                                                    Input = _inputs[input],
+                                                    Button = button.ToLower(),
+                                                    Value = compare
+                                                };
+
+                                                Console.WriteLine("Adding command '{0}' -> '{1}'.", button.ToLower(), mapping.Input.Name);
+                                                _mappings.Add(button.ToLower(), mapping);
+                                            }
+                                            else
+                                            {
+                                                Console.WriteLine("No input exists with the name '{0}', you must add one before you can add a mapping for it.", input);
+                                            }
+                                        }
+                                        else
+                                        {
+                                            Console.WriteLine("Missing required parameter 'input'.");
+                                        }
+
+                                    }
+                                    else
+                                    {
+                                        Console.WriteLine("Missing required parameter 'button'.");
+                                    }
+
+                                    break;
+                                }
+                        }
+
+                        break;
+                    }
+                case "exit":
+                    {
+                        Console.WriteLine("Exiting...");
+                        exit = true;
+                        break;
+                    }
+                default:
+                    {
+                        Console.WriteLine("Unknown command.");
+                        break;
+                    }
+            }
         }
 
         private static string RequestInput()
@@ -390,7 +419,7 @@ namespace Button2Key
                                 }
                             }
 
-                            Console.WriteLine(curUpdate);
+                            if(_debugInput) Console.WriteLine(curUpdate);
                         }
                     }
                 }
